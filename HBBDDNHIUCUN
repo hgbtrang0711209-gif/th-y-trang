@@ -1,0 +1,1063 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIDE TO US ♡</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#241b35;color:#fff;
+ font-family:Arial,sans-serif;text-align:center;
+ overflow-x:hidden
+}
+.screen{display:none;min-height:100vh;padding:20px}
+.screen.active{display:flex;flex-direction:column;align-items:center;justify-content:center}
+h1{font-size:clamp(30px,7vw,60px);color:#ff91bd;text-shadow:3px 3px #713d69}
+button{
+ border:3px solid #54334d;background:#ff8fba;color:#45243e;
+ padding:12px 22px;font-weight:bold;font-size:16px;
+ border-radius:9px;cursor:pointer;margin:7px;
+ box-shadow:3px 4px #542c4c
+}
+input{padding:12px;border-radius:8px;border:2px solid #ed9dbf;margin:8px;max-width:90%}
+#cover{width:min(85vw,350px);height:190px;object-fit:cover;border:5px solid white;border-radius:8px}
+#gameArea{width:100%;max-width:960px;position:relative}
+canvas{width:100%;display:block;border:4px solid #fff;border-radius:8px;touch-action:none}
+#hud{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:10px 0;font-size:17px}
+#controls{display:flex;justify-content:center;gap:20px;margin-top:12px}
+#controls button{min-width:75px;font-size:23px}
+.modal{
+ display:none;position:fixed;inset:0;background:#120d21ed;
+ z-index:10;align-items:center;justify-content:center;padding:15px
+}
+.modal.show{display:flex}
+.paper{
+ background:#fff6ed;color:#493044;padding:22px;
+ width:min(94vw,600px);max-height:90vh;overflow:auto;
+ border:6px solid #ef9abd;box-shadow:7px 7px #7b4669;
+ border-radius:5px
+}
+.paper h2{color:#db6798}
+.paper p{white-space:pre-wrap;text-align:left;line-height:1.65}
+.paper img{max-width:100%;max-height:55vh;object-fit:contain}
+.paper video{width:100%;max-height:55vh}
+.small{font-size:13px;color:#fbd9e9}
+#uploadPreview img{width:65px;height:65px;object-fit:cover;margin:4px;border:2px solid white}
+</style>
+</head>
+
+<body>
+
+<!-- MÀN HÌNH ĐẦU -->
+<section id="home" class="screen active">
+ <h1>RIDE TO US</h1>
+ <p>♡ OUR LITTLE LOVE STORY ♡</p>
+ <img id="cover" src="assets/cover.jpg" onerror="this.style.display='none'">
+ <h2>HAPPY BIRTHDAY HOÀNG 🎂</h2>
+ <p>Enter the secret password</p>
+ <input id="password" type="password" placeholder="Mật khẩu">
+ <button onclick="login()">START OUR JOURNEY ♡</button>
+ <p id="error"></p>
+ <div>
+  <p class="small">Tải ảnh và video nếu muốn thay đổi kỷ niệm:</p>
+  <label>Ảnh bìa <input type="file" accept="image/*" onchange="uploadCover(this)"></label><br>
+  <label>4 ảnh Round 2 <input type="file" accept="image/*" multiple onchange="uploadPhotos(this)"></label><br>
+  <label>3 video Round 3 <input type="file" accept="video/*" multiple onchange="uploadVideos(this)"></label><br>
+  <label>Nhạc nền <input type="file" accept="audio/*" onchange="uploadMusic(this)"></label>
+  <div id="uploadPreview"></div>
+ </div>
+</section>
+
+<!-- GIỚI THIỆU -->
+<section id="intro" class="screen">
+ <h1>OUR FIRST YEAR ♡</h1>
+ <p>Một hành trình nhỏ dành riêng cho anh.</p>
+ <p>3 vòng chơi – 3 lá thư – thật nhiều kỷ niệm.</p>
+ <button onclick="startRound(1)">LET'S GO →</button>
+</section>
+
+<!-- GAME -->
+<section id="game" class="screen">
+ <h2 id="roundTitle">ROUND 1</h2>
+ <div id="hud">
+  <span id="hearts">❤️❤️❤️</span>
+  <span id="coins">🪙 0</span>
+  <span id="helmet">🪖 Chưa có</span>
+  <span id="progress">0/4</span>
+ </div>
+ <p id="objective">Tìm chìa khóa nhé!</p>
+ <div id="gameArea">
+  <canvas id="gameCanvas" width="960" height="540"></canvas>
+ </div>
+ <div id="controls">
+  <button id="left">◀</button>
+  <button id="jump">JUMP ↑</button>
+  <button id="right">▶</button>
+ </div>
+ <p class="small">Máy tính: ← → để di chuyển, SPACE để nhảy.</p>
+</section>
+
+<!-- MỞ KHÓA -->
+<section id="unlock" class="screen">
+ <div style="font-size:85px">🔓</div>
+ <h1>LEVEL UNLOCKED!</h1>
+ <p id="unlockText">A new memory awaits ♡</p>
+ <button onclick="continueRound()">CONTINUE →</button>
+</section>
+
+<!-- THƯ -->
+<div class="modal" id="letterModal">
+ <div class="paper">
+  <h2 id="letterTitle">INCOMING MAIL ♡</h2>
+  <p id="letterContent"></p>
+  <button onclick="closeLetter()">CLOSE ♡</button>
+ </div>
+</div>
+
+<!-- ẢNH -->
+<div class="modal" id="photoModal">
+ <div class="paper">
+  <h2>OUR LITTLE MEMORIES ♡</h2>
+  <p id="photoNumber">MEMORY 1/4</p>
+  <img id="memoryImage">
+  <button onclick="nextPhoto()">CONTINUE →</button>
+ </div>
+</div>
+
+<!-- VIDEO -->
+<div class="modal" id="videoModal">
+ <div class="paper">
+  <h2>OUR SPECIAL MOMENT ♡</h2>
+  <video id="memoryVideo" controls playsinline></video>
+  <button onclick="closeVideo()">CLOSE ♡</button>
+ </div>
+</div>
+
+<section id="finish" class="screen">
+ <h1>THE END ♡</h1>
+ <div style="font-size:80px">🎂💗🎉</div>
+ <h2>HAPPY BIRTHDAY HOÀNG!</h2>
+ <p>Thank you for being my favorite person.</p>
+ <p>OUR JOURNEY IS FOREVER ♡</p>
+ <button onclick="location.reload()">PLAY AGAIN</button>
+</section>
+
+<audio id="music" loop></audio>
+
+<script>
+/* ===================================
+   1. ĐƯỜNG DẪN ẢNH VÀ VIDEO
+=================================== */
+
+const ASSETS = {
+ cover: "assets/cover.jpg",
+ boy: "assets/boy.png",
+ girl: "assets/girl.png",
+ couple: "assets/couple-bike.png",
+
+ photos:[
+  "assets/photo1.jpg",
+  "assets/photo2.jpg",
+  "assets/photo3.jpg",
+  "assets/photo4.jpg"
+ ],
+
+ videos:[
+  "assets/video1.mp4",
+  "assets/video2.mp4",
+  "assets/video3.mp4"
+ ],
+
+ music:"assets/music.mp3"
+};
+
+const images={};
+function loadImage(name,src){
+ const im=new Image();
+ im.src=src;
+ images[name]=im;
+}
+Object.entries({
+ boy:ASSETS.boy,
+ girl:ASSETS.girl,
+ couple:ASSETS.couple
+}).forEach(([n,s])=>loadImage(n,s));
+
+let photos=ASSETS.photos.slice();
+let videos=ASSETS.videos.slice();
+let currentMusic=ASSETS.music;
+
+/* ===================================
+   2. NỘI DUNG BA LÁ THƯ
+=================================== */
+
+const letters=[
+`🎊 ú oà , tadaa tadaa tadaaaa 🎊
+
+biết nay là ngày gì khônggg , ngày gì taaa ??? ngày của Đinh Ngọc Hoàng chứ ngày gì nữaa 🎉🎉
+
+Bước sang 1 tuổi mới rùi đó , hơn em 1 tuổi r đó phải trưởng thành lên đó 💪💪 em luôn ở đây iu và thương và đợi anh mà.
+
+Em biết là rất nhiều lúc anh có rất nhiều thứ phải lo và áp lực đè lên anh nhưng mà anh vẫn rất mạnh mẽ , đôi lúc có hơi nhõng nhẽo 1 chút nhưng mà khum sao em vẫn yêu nhưng phải trưởng thành hơn nhìu đó nhé 😠
+
+Có biết là sinh nhật anh tận 27/11 mà từ tháng 10 tôi đã loay hoay không biết tặng anh cái gì k hả ??? phải thức mấy ngày mấy đêm suy nghĩ tặng 1 cái gì thật ấn tượng thật khum thể quên dcc.
+
+Nhưng mà phải thương em và trân trọng món quà ngày đêm em tìm để tặng anh và suy nghĩ ý tưởng tặng sao cho đặc biệt đó nha , khum ai yêu anh như tôi đâu 😒
+
+Thuii , tuổi mới nên là cái gì cũng mới , thay đổi level up cuộc sống mới phát triển bản thân hơn nha.
+
+Em chúc anh yêu ơi là yêu tuổi mới luôn vui vẻ , hạnh phúc và kiếm thậc nhiều tiền để lo cho cái bụng và tâm hồn shopping của iem hẹ hẹ.
+
+Em biết anh yêu của em rất là giỏii , chỉ cần cố gắng là sẽ làm được mà thuii nên là em luôn ở đây chờ ngày a thành công.
+
+Khi nào mà mệt mỏi quá ngoảnh lại phía sau khum có em đâu , tại em ở đằng trước mặt anh á =)))
+
+Em yêu anh nhìu lắm 🤍🤍 Phải lun lun hạnh phúc và yêu thương bản thân nhìu hơn nhenn`,
+
+`heloo hoàng thúii
+
+đây là bất ngờ thứ 2 , đừng có bất ngờ quá r khóc huhu nha 😝 em biết là bình thường em k có giỏi sến súa , đôi lúc e có hay chửi hay đánh a xíu thoi nhưng mà em iu anh mò.
+
+.có iu mới có đánh có chửi , chứ 1 ngày nào đó mà e k chửi k đánh a là ngày đó e hết iu anh r hahah.
+
+Nay là ngày sinh nhật của anh nên em sẽ dùng lời lẽ rất yêu thương anh mà bình thường em khum nói , anh đừng có sốc quá nhá.
+
+Em rất là yêu anhh , yêu nhiều hơn lời em nói và anh biết rõ điều đó , có thể em không hay thể hiện ra ngoài nhưng hành động của em là anh biết r đúng k bảo bối ngok ngeck ? kk nói trêu z thui chứ sinh nhật anh mò , nên là em iu anh x1000 mọi hôm.
+
+Love you cục cức thúi của em 🤍🤍`,
+
+`helo baboo cục cưnn
+
+lại gặp nhau r ha , chơi tới vòng này cũng giỏi r đó ha , em biết ngiu em giỏi màa.
+
+ở trước nói hết r nên ở màn này khum có gì để nói hết chơn. Thoi thì nói yêu anh tạm nha dc khum ?? Thôi ai cho , nói chứ em vẫn yêu và thương anh nhìu nhìu lắm.
+
+Tại bình thường k hay nói nên nay nói x100 cho sợ luôn , đọc cho ngán luôn , tranh thủ đọc và trân trọng đi tại mai ăn tát ăn chởi chứ k dc nghe đâu á.
+
+Nói đến đây thì nói tới dặn dò anh đi ha !! Hmm thì em mong là anh sẽ chăm sóc và yêu thương bản thân nhiều hơn , chứ không phải như bây giờ gầy quá là gầy bệnh quá là bệnh r.
+
+Em mong anh thật sự yêu thương bản thân , lo cho bản thân như lo cho em vậy đó , xin á , làm ơn hãy bảo vệ người tui iu đi , trông người tui iu khổ lắm rr.
+
+Nhớ ăn uống đầy đủ , ngủ giờ giấc sinh hoạt lành mạnh zoo đừng có bản bê bản thân nữa em sót lắm.
+
+Và nhớ phải trưởng thành nhìu lên để còn lo cho gia đình và em nha , em luôn ủng hộ và chờ đợi yêu anh nếu anh luôn cố gắng.
+
+Cố lên nha , chúc mừng sinh nhật hoàng thúi của em ❤️`
+];
+
+/* ===================================
+   3. BIẾN GAME
+=================================== */
+
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+
+const W=960,H=540,GROUND=420;
+let round=1,playing=false;
+let lives=3,coins=0,helmet=false;
+let keyFound=false,foundGirl=false;
+let photoCount=0,giftCount=0;
+let photoIndex=0;
+let invincible=0,frame=0;
+let camera=0;
+
+let player={
+ x:80,y:GROUND-90,w:60,h:85,
+ vy:0,onGround:true,jumps:0
+};
+
+let obstacles=[],items=[],photoObjects=[],giftObjects=[];
+let left=false,right=false,jump=false;
+let lastTime=0;
+
+/* ===================================
+   4. TIỆN ÍCH
+=================================== */
+
+function screen(id){
+ document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+ document.getElementById(id).classList.add("active");
+}
+
+function login(){
+ if(document.getElementById("password").value!=="830807"){
+  document.getElementById("error").textContent="Sai mật khẩu rồi ♡";
+  return;
+ }
+ screen("intro");
+ const m=document.getElementById("music");
+ m.src=currentMusic;
+ m.play().catch(()=>{});
+}
+
+function uploadCover(input){
+ if(input.files[0]){
+  document.getElementById("cover").src=URL.createObjectURL(input.files[0]);
+ }
+}
+
+function uploadPhotos(input){
+ [...input.files].slice(0,4).forEach((f,i)=>{
+  photos[i]=URL.createObjectURL(f);
+ });
+ showUploadPreview();
+}
+
+function uploadVideos(input){
+ [...input.files].slice(0,3).forEach((f,i)=>{
+  videos[i]=URL.createObjectURL(f);
+ });
+ showUploadPreview();
+}
+
+function uploadMusic(input){
+ if(input.files[0]){
+  currentMusic=URL.createObjectURL(input.files[0]);
+  const m=document.getElementById("music");
+  m.src=currentMusic;
+  m.play().catch(()=>{});
+ }
+}
+
+function showUploadPreview(){
+ document.getElementById("uploadPreview").innerHTML=
+ [...photos].map(src=>`<img src="${src}">`).join("");
+}
+
+/* ===================================
+   5. KHỞI TẠO ROUND
+=================================== */
+
+function startRound(n){
+ round=n;
+ lives=3;
+ coins=0;
+ helmet=false;
+ keyFound=false;
+ foundGirl=false;
+ photoCount=0;
+ giftCount=0;
+ camera=0;
+ invincible=0;
+ frame=0;
+
+ player.x=80;
+ player.y=GROUND-90;
+ player.vy=0;
+ player.jumps=0;
+
+ obstacles=[];
+ items=[];
+ photoObjects=[];
+ giftObjects=[];
+
+ // Hộp gỗ, cây và gai
+ const layout=[
+  ["box",350],["tree",560],["spike",780],
+  ["box",990],["spike",1200],
+  ["tree",1400],["spike",1620],
+  ["box",1830],["spike",2040]
+ ];
+
+ layout.forEach(([type,x])=>{
+  obstacles.push({type,x,hit:false});
+ });
+
+ // Xu
+ [250,600,900,1150,1450,1750,1950].forEach((x,i)=>{
+  items.push({
+   type:"coin",x,y:GROUND-(i%2?130:70),taken:false
+  });
+ });
+
+ // Nón bảo vệ
+ items.push({
+  type:"helmet",x:1050,y:GROUND-100,taken:false
+ });
+
+ // Chìa khóa cuối vòng
+ items.push({
+  type:"key",x:2200,y:GROUND-90,taken:false
+ });
+
+ // 4 ảnh Round 2
+ if(round===2){
+  for(let i=0;i<4;i++){
+   photoObjects.push({
+    x:420+i*440,
+    y:i%2===0?125:175,
+    taken:false,
+    index:i
+   });
+  }
+ }
+
+ // 3 hộp quà Round 3
+ if(round===3){
+  giftObjects=[
+   {x:550,y:GROUND-160,taken:false,index:0},
+   {x:1150,y:GROUND-230,taken:false,index:1},
+   {x:1750,y:GROUND-115,taken:false,index:2}
+  ];
+ }
+
+ document.getElementById("roundTitle").textContent="ROUND "+round;
+ updateHUD();
+ screen("game");
+ playing=true;
+ lastTime=0;
+ requestAnimationFrame(gameLoop);
+}
+
+/* ===================================
+   6. GIAO DIỆN
+=================================== */
+
+function updateHUD(){
+ document.getElementById("hearts").textContent=
+ "❤️".repeat(lives)+"🤍".repeat(3-lives);
+
+ document.getElementById("coins").textContent="🪙 "+coins;
+
+ document.getElementById("helmet").textContent=
+ helmet?"🪖 Đã có":"🪖 Chưa có";
+
+ document.getElementById("progress").textContent=
+ round===2?photoCount+"/4":
+ round===3?giftCount+"/3":"🔑";
+}
+
+/* ===================================
+   7. NỀN BA MÙA
+=================================== */
+
+function drawBackground(){
+ let g=ctx.createLinearGradient(0,0,0,H);
+
+ if(round===1){
+  g.addColorStop(0,"#83d7f4");
+  g.addColorStop(1,"#e5f5d6");
+ }else if(round===2){
+  g.addColorStop(0,"#ffae70");
+  g.addColorStop(1,"#bd554a");
+ }else{
+  g.addColorStop(0,"#171947");
+  g.addColorStop(1,"#70448d");
+ }
+
+ ctx.fillStyle=g;
+ ctx.fillRect(0,0,W,H);
+
+ if(round===3){
+  for(let i=0;i<90;i++){
+   ctx.fillStyle="#fff5d5";
+   ctx.globalAlpha=.4+(i%3)*.2;
+   ctx.beginPath();
+   ctx.arc((i*137)%W,(i*71)%310,2,0,Math.PI*2);
+   ctx.fill();
+  }
+  ctx.globalAlpha=1;
+ }
+
+ if(round===2){
+  ctx.fillStyle="#ffdc89";
+  ctx.beginPath();
+  ctx.arc(780,150,65,0,Math.PI*2);
+  ctx.fill();
+ }
+
+ if(round===1){
+  ctx.fillStyle="#a5d59a";
+  for(let i=0;i<8;i++){
+   ctx.beginPath();
+   ctx.arc(i*150-camera*.2%1200,350,80,Math.PI,0);
+   ctx.fill();
+  }
+ }
+
+ ctx.fillStyle=round===3?"#373052":
+ round===2?"#744b45":"#70645d";
+ ctx.fillRect(0,GROUND,W,H-GROUND);
+
+ ctx.fillStyle=round===3?"#514274":
+ round===2?"#df9664":"#74c96d";
+ ctx.fillRect(0,GROUND+100,W,10);
+
+ ctx.strokeStyle="#fff";
+ ctx.lineWidth=4;
+ ctx.setLineDash([22,18]);
+ ctx.beginPath();
+ ctx.moveTo(0,GROUND+55);
+ ctx.lineTo(W,GROUND+55);
+ ctx.stroke();
+ ctx.setLineDash([]);
+}
+
+/* ===================================
+   8. NHÂN VẬT
+=================================== */
+
+function drawCharacter(x,y,name,fallback){
+ const im=images[name];
+
+ if(im&&im.complete&&im.naturalWidth>0){
+  ctx.drawImage(im,x,y,75,90);
+ }else{
+  ctx.font="65px Arial";
+  ctx.fillText(fallback,x,y+70);
+ }
+}
+
+function drawPlayer(){
+ const x=player.x-camera;
+
+ if(round===1){
+  drawCharacter(x,player.y,"boy","🧑🏻");
+ }else if(round===2){
+  drawCharacter(x,player.y,"boy","🧑🏻");
+  ctx.font="32px Arial";
+  ctx.fillText("🏍️",x+5,player.y+85);
+ }else{
+  const im=images.couple;
+  if(im&&im.complete&&im.naturalWidth>0){
+   ctx.drawImage(im,x,player.y-5,120,95);
+  }else{
+   ctx.font="65px Arial";
+   ctx.fillText("🏍️",x,player.y+75);
+   ctx.font="30px Arial";
+   ctx.fillText("🧑🏻",x+15,player.y+20);
+   ctx.fillText("👩🏻",x+50,player.y+20);
+  }
+ }
+}
+
+/* ===================================
+   9. VẬT CẢN
+=================================== */
+
+function drawObstacles(){
+ obstacles.forEach(o=>{
+  const x=o.x-camera;
+  if(x<-100||x>W+100)return;
+
+  if(o.type==="box"){
+   ctx.fillStyle="#a9673f";
+   ctx.fillRect(x,GROUND-60,65,60);
+   ctx.strokeStyle="#70432d";
+   ctx.lineWidth=4;
+   ctx.strokeRect(x,GROUND-60,65,60);
+   ctx.beginPath();
+   ctx.moveTo(x,GROUND-60);
+   ctx.lineTo(x+65,GROUND);
+   ctx.moveTo(x+65,GROUND-60);
+   ctx.lineTo(x,GROUND);
+   ctx.stroke();
+  }
+
+  if(o.type==="tree"){
+   ctx.fillStyle="#79533b";
+   ctx.fillRect(x+28,GROUND-80,20,80);
+   ctx.fillStyle="#39934c";
+   ctx.beginPath();
+   ctx.arc(x+38,GROUND-115,48,0,7);
+   ctx.fill();
+   ctx.fillStyle="#5ab75d";
+   ctx.beginPath();
+   ctx.arc(x+15,GROUND-130,28,0,7);
+   ctx.fill();
+  }
+
+  if(o.type==="spike"){
+   ctx.fillStyle="#fff5ee";
+   ctx.beginPath();
+   ctx.moveTo(x,GROUND);
+   ctx.lineTo(x+30,GROUND-55);
+   ctx.lineTo(x+60,GROUND);
+   ctx.fill();
+   ctx.strokeStyle="#d94b6c";
+   ctx.lineWidth=4;
+   ctx.stroke();
+  }
+ });
+}
+
+/* ===================================
+   10. ĐỒ VẬT
+=================================== */
+
+function drawItems(){
+ items.forEach(p=>{
+  if(p.taken)return;
+  const x=p.x-camera;
+  if(x<-50||x>W+50)return;
+
+  ctx.font="35px Arial";
+
+  if(p.type==="coin")ctx.fillText("🪙",x,p.y);
+  if(p.type==="helmet")ctx.fillText("🪖",x,p.y);
+  if(p.type==="key")ctx.fillText("🗝️",x,p.y);
+ });
+}
+
+/* ===================================
+   11. ẢNH TREO ROUND 2
+=================================== */
+
+function drawPhotos(){
+ photoObjects.forEach(p=>{
+  if(p.taken)return;
+
+  const x=p.x-camera;
+  ctx.strokeStyle="#493448";
+  ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(x+65,0);
+  ctx.lineTo(x+65,p.y);
+  ctx.stroke();
+
+  ctx.fillStyle="#fff8ee";
+  ctx.fillRect(x,p.y,130,130);
+
+  ctx.strokeStyle="#51394b";
+  ctx.strokeRect(x,p.y,130,130);
+
+  const im=new Image();
+  im.src=photos[p.index];
+
+  if(im.complete&&im.naturalWidth>0){
+   ctx.drawImage(im,x+7,p.y+7,116,105);
+  }else{
+   ctx.fillStyle="#f0a8c5";
+   ctx.fillRect(x+7,p.y+7,116,105);
+   ctx.fillStyle="#fff";
+   ctx.font="35px Arial";
+   ctx.fillText("♡",x+48,p.y+68);
+  }
+
+  ctx.fillStyle="#51394b";
+  ctx.font="11px Arial";
+  ctx.fillText("OUR MEMORY "+(p.index+1),x+25,p.y+122);
+ });
+}
+
+/* ===================================
+   12. HỘP QUÀ ROUND 3
+=================================== */
+
+function drawGifts(){
+ giftObjects.forEach(p=>{
+  if(p.taken)return;
+
+  const x=p.x-camera;
+  ctx.fillStyle="#f18ab8";
+  ctx.fillRect(x,p.y,65,58);
+
+  ctx.fillStyle="#ffe9a5";
+  ctx.fillRect(x+27,p.y,11,58);
+  ctx.fillRect(x,p.y+22,65,10);
+
+  ctx.fillStyle="#ffd2e5";
+  ctx.fillRect(x+13,p.y-12,40,14);
+
+  ctx.strokeStyle="#843f6d";
+  ctx.lineWidth=4;
+  ctx.strokeRect(x,p.y,65,58);
+
+  ctx.font="22px Arial";
+  ctx.fillStyle="#fff";
+  ctx.fillText("♡",x+20,p.y+43);
+ });
+}
+
+/* ===================================
+   13. BẠN GÁI VÀ CỬA
+=================================== */
+
+const girlX=2500,doorX=2600;
+
+function drawGirlAndDoor(){
+ if(round===3)return;
+
+ const gx=girlX-camera;
+ drawCharacter(gx,GROUND-90,"girl","👩🏻");
+
+ if(foundGirl){
+  ctx.fillStyle="#fff";
+  ctx.font="bold 24px Arial";
+  ctx.fillText("FOUND YOU ♡",gx-40,GROUND-110);
+ }
+
+ const dx=doorX-camera;
+ ctx.fillStyle="#805039";
+ ctx.fillRect(dx,GROUND-150,85,150);
+ ctx.fillStyle="#f5d7a0";
+ ctx.fillRect(dx+12,GROUND-130,60,130);
+ ctx.fillStyle="#b77c39";
+ ctx.beginPath();
+ ctx.arc(dx+60,GROUND-70,6,0,7);
+ ctx.fill();
+}
+
+/* ===================================
+   14. VẼ TOÀN BỘ
+=================================== */
+
+function drawGame(){
+ drawBackground();
+ drawObstacles();
+ drawItems();
+
+ if(round===2)drawPhotos();
+ if(round===3)drawGifts();
+
+ drawGirlAndDoor();
+ drawPlayer();
+}
+
+/* ===================================
+   15. VA CHẠM VÀ MẤT MẠNG
+=================================== */
+
+function loseLife(){
+ if(invincible>0)return;
+
+ if(helmet){
+  helmet=false;
+  invincible=65;
+  updateHUD();
+  document.getElementById("objective").textContent=
+  "🪖 Nón bảo vệ đã đỡ một lần va chạm!";
+  return;
+ }
+
+ lives--;
+ invincible=65;
+ updateHUD();
+
+ if(lives<=0){
+  playing=false;
+  setTimeout(()=>{
+   alert("Hết mạng rồi! Chơi lại round này nha ♡");
+   startRound(round);
+  },100);
+ }
+}
+
+function collide(a,b){
+ return a.x+a.w>b.x&&a.x<b.x+b.w&&
+ a.y+a.h>b.y&&a.y<b.y+b.h;
+}
+
+function checkInteractions(){
+ const px=player.x;
+ const py=player.y;
+
+ // Vật cản
+ obstacles.forEach(o=>{
+  if(o.hit)return;
+
+  const w=o.type==="tree"?65:60;
+  const h=o.type==="spike"?55:
+  o.type==="tree"?90:60;
+
+  const box={
+   x:o.x,y:GROUND-h,w:w,h:h
+  };
+
+  const body={
+   x:px+12,y:py+10,w:45,h:75
+  };
+
+  if(collide(body,box)){
+   if(o.type==="spike"){
+    loseLife();
+   }else if(player.onGround){
+    player.x=Math.max(0,player.x-4);
+   }
+  }
+ });
+
+ // Xu, nón, chìa khóa
+ items.forEach(p=>{
+  if(p.taken)return;
+
+  if(Math.abs(px-p.x)<45&&
+     Math.abs(py-p.y)<110){
+
+   p.taken=true;
+
+   if(p.type==="coin"){
+    coins++;
+   }
+
+   if(p.type==="helmet"){
+    helmet=true;
+    document.getElementById("objective").textContent=
+    "Đã nhặt nón bảo vệ!";
+   }
+
+   if(p.type==="key"){
+    keyFound=true;
+    document.getElementById("objective").textContent=
+    "Đã tìm thấy chìa khóa! ♡";
+   }
+
+   updateHUD();
+  }
+ });
+
+ // 4 ảnh Round 2
+ if(round===2){
+  photoObjects.forEach(p=>{
+   if(!p.taken&&Math.abs(px-p.x)<80){
+    p.taken=true;
+    photoIndex=p.index;
+    photoCount++;
+    openPhoto(p.index);
+   }
+  });
+ }
+
+ // 3 hộp quà Round 3
+ if(round===3){
+  giftObjects.forEach(p=>{
+   if(!p.taken&&Math.abs(px-p.x)<60&&
+   Math.abs(py-p.y)<160){
+    p.taken=true;
+    giftCount++;
+    openVideo(p.index);
+   }
+  });
+ }
+
+ // Gặp bạn gái
+ if(round!==3&&keyFound&&!foundGirl&&
+ Math.abs(px-girlX)<65){
+
+  if(round===2&&photoCount<4){
+   document.getElementById("objective").textContent=
+   "Hãy xem đủ 4 ảnh trước nha ♡";
+  }else{
+   foundGirl=true;
+   document.getElementById("objective").textContent=
+   "FOUND YOU ♡ Cùng nhau tới cánh cửa!";
+  }
+ }
+
+ // Qua cửa
+ if(keyFound&&Math.abs(px-doorX)<65){
+  if(round===1&&foundGirl)winRound();
+  if(round===2&&foundGirl&&photoCount===4)winRound();
+  if(round===3&&giftCount===3)winRound();
+ }
+}
+
+/* ===================================
+   16. HIỆU ỨNG ẢNH
+=================================== */
+
+function openPhoto(index){
+ playing=false;
+
+ const im=document.getElementById("memoryImage");
+ im.src=photos[index];
+ document.getElementById("photoNumber").textContent=
+ "MEMORY "+(index+1)+" / 4";
+
+ document.getElementById("photoModal").classList.add("show");
+}
+
+function nextPhoto(){
+ document.getElementById("photoModal").classList.remove("show");
+
+ if(photoCount===4){
+  document.getElementById("objective").textContent=
+  "Đã xem đủ 4 ảnh! Tìm chìa khóa và gặp bạn gái ♡";
+ }
+
+ playing=true;
+ requestAnimationFrame(gameLoop);
+}
+
+/* ===================================
+   17. VIDEO HỘP QUÀ
+=================================== */
+
+function openVideo(index){
+ playing=false;
+
+ const v=document.getElementById("memoryVideo");
+ v.src=videos[index];
+ document.getElementById("videoModal").classList.add("show");
+ v.play().catch(()=>{});
+}
+
+function closeVideo(){
+ const v=document.getElementById("memoryVideo");
+ v.pause();
+ v.removeAttribute("src");
+ v.load();
+
+ document.getElementById("videoModal").classList.remove("show");
+
+ document.getElementById("objective").textContent=
+ "Đã mở "+giftCount+"/3 hộp quà ♡";
+
+ playing=true;
+ requestAnimationFrame(gameLoop);
+}
+
+/* ===================================
+   18. THẮNG VÀ MỞ THƯ
+=================================== */
+
+function winRound(){
+ if(!playing)return;
+
+ playing=false;
+
+ document.getElementById("unlockText").textContent=
+ "ROUND "+round+" COMPLETE ♡";
+
+ screen("unlock");
+}
+
+function continueRound(){
+ if(round===3){
+  openLetter(2);
+  return;
+ }
+
+ openLetter(round);
+}
+
+function openLetter(n){
+ document.getElementById("letterTitle").textContent=
+ "INCOMING MAIL • LETTER "+n;
+
+ document.getElementById("letterContent").textContent=
+ letters[n-1];
+
+ document.getElementById("letterModal").classList.add("show");
+}
+
+function closeLetter(){
+ document.getElementById("letterModal").classList.remove("show");
+
+ if(round===3){
+  screen("finish");
+ }else{
+  if(round===1){
+   startRound(2);
+  }else{
+   startRound(3);
+  }
+ }
+}
+
+/* ===================================
+   19. VÒNG LẶP GAME
+=================================== */
+
+function gameLoop(time){
+ if(!playing)return;
+
+ const dt=Math.min((time-lastTime)/16.67||1,2);
+ lastTime=time;
+
+ frame++;
+
+ if(invincible>0)invincible--;
+
+ const speed=round===1?4:
+ round===2?5:3.5;
+
+ if(left)player.x-=speed*dt;
+ if(right)player.x+=speed*dt;
+
+ player.x=Math.max(0,Math.min(2550,player.x));
+
+ if(jump){
+  if(player.onGround||player.jumps<2){
+   player.vy=-13;
+   player.onGround=false;
+   player.jumps++;
+  }
+  jump=false;
+ }
+
+ player.vy+=.65*dt;
+ player.y+=player.vy*dt;
+
+ if(player.y>=GROUND-player.h){
+  player.y=GROUND-player.h;
+  player.vy=0;
+  player.onGround=true;
+  player.jumps=0;
+ }else{
+  player.onGround=false;
+ }
+
+ camera=Math.max(0,player.x-300);
+
+ checkInteractions();
+
+ drawGame();
+
+ if(invincible>0&&Math.floor(frame/5)%2===0){
+  ctx.fillStyle="#ffffff55";
+  ctx.fillRect(player.x-camera,player.y,70,90);
+ }
+
+ if(playing)requestAnimationFrame(gameLoop);
+}
+
+/* ===================================
+   20. ĐIỀU KHIỂN MÁY TÍNH
+=================================== */
+
+window.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")left=true;
+ if(e.key==="ArrowRight"||e.key==="d")right=true;
+ if(e.key===" "||e.key==="ArrowUp")jump=true;
+});
+
+window.addEventListener("keyup",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")left=false;
+ if(e.key==="ArrowRight"||e.key==="d")right=false;
+});
+
+/* ===================================
+   21. ĐIỀU KHIỂN ĐIỆN THOẠI
+=================================== */
+
+function holdButton(id,action){
+ const b=document.getElementById(id);
+
+ b.addEventListener("pointerdown",e=>{
+  e.preventDefault();
+  action(true);
+ });
+
+ ["pointerup","pointerleave","pointercancel"].forEach(ev=>{
+  b.addEventListener(ev,e=>{
+   e.preventDefault();
+   action(false);
+  });
+ });
+}
+
+holdButton("left",v=>left=v);
+holdButton("right",v=>right=v);
+
+document.getElementById("jump").addEventListener("pointerdown",e=>{
+ e.preventDefault();
+ jump=true;
+});
+
+</script>
+</body>
+</html>
